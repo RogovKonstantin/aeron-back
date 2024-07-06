@@ -45,7 +45,7 @@ def save_folder_to_database(folder_name, parent_id):
 def get_template_from_database(template_id):
     conn = get_db_connection()
     cursor = conn.cursor()
-    query = "SELECT * FROM templates WHERE template_id = %s"
+    query = "SELECT template FROM templates WHERE template_id = %s"
     cursor.execute(query, (template_id,))
     template = cursor.fetchone()
     conn.close()
@@ -55,7 +55,7 @@ def get_template_from_database(template_id):
 def get_all_templates_from_database():
     conn = get_db_connection()
     cursor = conn.cursor()
-    query = "SELECT template_id, template_name FROM templates"
+    query = "SELECT template_id, template_name, folder_id FROM templates"
     cursor.execute(query)
     templates = cursor.fetchall()
     conn.close()
@@ -116,13 +116,7 @@ def get_template(template_id):
     template = get_template_from_database(template_id)
     if template:
         return jsonify({
-            "template_id": template[0],
-            "template_name": template[1],
-            "picking_template": template[2],
-            "template": template[3],
-            "model": template[4],
-            "message": template[5],
-            "folder_id": template[6]
+            "template": template[0],
         })
     else:
         return "Template not found", 404
@@ -132,7 +126,7 @@ def get_template(template_id):
 def get_all_templates():
     templates = get_all_templates_from_database()
     return jsonify([
-        {"template_id": template[0], "template_name": template[1]}
+        {"template_id": template[0], "template_name": template[1],"folder_id": template[2]}
         for template in templates
     ])
 
