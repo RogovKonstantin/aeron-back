@@ -59,7 +59,7 @@ def save_template():
     if not data:
         return "No data received", 400
 
-    required_fields = ['template_name', 'picking_template', 'template', 'model', 'message', 'folder_id']
+    required_fields = ['template_name', 'folder_id']
     if not all(field in data for field in required_fields):
         return "Incomplete data", 400
 
@@ -75,15 +75,36 @@ def save_folder():
 
     folder_name = data.get("folder_name")
     parent_id = data.get("parent_id")
-    if not folder_name or (parent_id is not None and not isinstance(parent_id, int)):
+    if not folder_name or not isinstance(parent_id, int):
         return "Incomplete data", 400
 
     save_to_database('folders', ['folder_name', 'parent_id'], [folder_name, parent_id])
     return "Folder saved to database", 201
 
 
-@app.route("/get-template/<int:template_id>", methods=["GET"])
-def get_template(template_id):
+@app.route("/get-folder-id", methods=["GET"])
+def get_folder_id():
+    folder_name = request.args.get("folder_name")
+    if not folder_name:
+        return "Folder name not provided", 400
+    query = "SELECT folder_id FROM folders WHERE folder_name = %s"
+    folder = execute_query(query, (folder_name,), fetchone=True)
+    if folder:
+        return jsonify({"folder_id": folder[0]})
+    return "Folder not found", 404
+
+
+@app.route("/get-template", methods=["GET"])
+def get_template():
+    template_id = request.args.get("template_id")
+    if not template_id:
+        return "Template ID not provided", 400
+
+    try:
+        template_id = int(template_id)
+    except ValueError:
+        return "Invalid Template ID", 400
+
     query = "SELECT template FROM templates WHERE template_id = %s"
     template = execute_query(query, (template_id,), fetchone=True)
     if template:
