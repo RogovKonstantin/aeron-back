@@ -13,7 +13,7 @@ CORS(app, resources={r"/download": {"origins": "*"}})
 
 
 def get_db_connection():
-    return psycopg2.connect(dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD)
+    return psycopg2.connect(dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD, host="127.0.0.1", port="5432")
 
 
 def save_message_to_database(message, result):
