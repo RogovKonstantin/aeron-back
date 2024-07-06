@@ -20,7 +20,7 @@ cursor.execute(create_table_query1)
 create_table_query2 = '''CREATE TABLE IF NOT EXISTS message (
                             message_id SERIAL PRIMARY KEY,
                             message VARCHAR(255) NOT NULL,
-                            result VARCHAR(255)
+                            result VARCHAR(255) NOT NULL
                         )'''
 cursor.execute(create_table_query2)
 
@@ -28,10 +28,10 @@ create_table_query3 = '''CREATE TABLE IF NOT EXISTS templates (
                             template_id SERIAL PRIMARY KEY,
                             template_name VARCHAR(255) NOT NULL,
                             picking_template VARCHAR(255),
-                            template VARCHAR(255),
+                            template VARCHAR(255) NOT NULL,
                             model VARCHAR(255),
                             message VARCHAR(255),
-                            folder_id INTEGER,
+                            folder_id INTEGER NOT NULL,
                             FOREIGN KEY (folder_id) REFERENCES folders(folder_id)
                         )'''
 cursor.execute(create_table_query3)

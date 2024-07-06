@@ -6,8 +6,6 @@ DB_NAME = 'acars'
 DB_USER = 'user_back'
 DB_PASSWORD = 'Gdfhg354'
 
-
-
 app = Flask(__name__)
 CORS(app, resources={r"/download": {"origins": "*"}})
 
@@ -31,6 +29,16 @@ def save_template_to_database(template_name, picking_template, template, model, 
     query = "INSERT INTO templates (template_name, picking_template, template, model, message, folder_id) VALUES (%s, %s, %s, %s, %s, %s)"
     cursor.execute(query, (template_name, picking_template, template, model, message, folder_id))
     conn.commit()
+    conn.close()
+
+
+def save_folder_to_database(folder_name, parent_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('INSERT INTO folders (folder_name, parent_id) VALUES (%s, %s)',
+                   (folder_name, parent_id))
+    conn.commit()
+    cursor.close()
     conn.close()
 
 
@@ -88,6 +96,21 @@ def save_template():
         return "No data received", 400
 
 
+@app.route("/save-folder", methods=["POST"])
+def save_folder():
+    data = request.get_json()
+    if data:
+        folder_name = data.get("folder_name")
+        parent_id = data.get("parent_id")
+        if folder_name and (parent_id is None or isinstance(parent_id, int)):
+            save_folder_to_database(folder_name, parent_id)
+            return "Folder saved to database", 201
+        else:
+            return "Incomplete data", 400
+    else:
+        return "No data received", 400
+
+
 @app.route("/get-template/<int:template_id>", methods=["GET"])
 def get_template(template_id):
     template = get_template_from_database(template_id)
@@ -112,8 +135,6 @@ def get_all_templates():
         {"template_id": template[0], "template_name": template[1]}
         for template in templates
     ])
-
-
 
 
 if __name__ == "__main__":
