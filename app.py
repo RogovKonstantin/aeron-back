@@ -66,23 +66,25 @@ def save_template():
     if not all(field in data for field in required_fields):
         return "Incomplete data", 400
 
+    folder_id = data['folder_id']
+    if folder_id in [1, 2]:
+        return jsonify({"error": "Templates cannot be created in folders with id 1 and 2"}), 403
+
     save_to_database('templates', required_fields, [data[field] for field in required_fields])
     return "Template saved to database", 201
 
 
-@app.route("/save-folder", methods=["POST"])
+@app.route('/save-folder', methods=['POST'])
 def save_folder():
-    data = request.get_json()
-    if not data:
-        return "No data received", 400
+    data = request.json
+    folder_name = data.get('folder_name')
+    parent_id = data.get('parent_id')
 
-    folder_name = data.get("folder_name")
-    parent_id = data.get("parent_id")
-    if not folder_name or not isinstance(parent_id, int):
-        return "Incomplete data", 400
-
-    save_to_database('folders', ['folder_name', 'parent_id'], [folder_name, parent_id])
-    return "Folder saved to database", 201
+    response = {
+        "folder_name": folder_name,
+        "parent_id": parent_id
+    }
+    return jsonify(response), 201
 
 
 @app.route("/get-folder-id", methods=["GET"])

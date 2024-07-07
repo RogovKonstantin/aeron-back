@@ -51,10 +51,8 @@ class DatabaseSetup:
                 ('Uplink templates', NULL),
                 ('A-320 templates', 1),
                 ('A-300 template', 1),
-                ('A-350 templates', 1),
-                ('A-320 template 1', 2),
-                ('A-320 template 2', 2),
-                ('A-300 template 1', 3)''',
+                ('A-350 templates', 1)
+                ''',
             '''INSERT INTO message (message, result) VALUES 
                 ('Message 1', 'Result A'),
                 ('Message 2', 'Result B'),
