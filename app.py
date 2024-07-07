@@ -5,8 +5,8 @@ from psycopg2 import sql
 from db_init import DatabaseSetup
 
 DB_NAME = 'acars'
-DB_USER = 'postgres'
-DB_PASSWORD = 'postgres'
+DB_USER = 'user_back'
+DB_PASSWORD = 'Gdfhg354'
 DB_HOST = "127.0.0.1"
 DB_PORT = "5432"
 
