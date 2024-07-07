@@ -43,33 +43,41 @@ def save_to_database(table, columns, values):
 def save_message():
     data = request.get_json()
     if not data:
-        return "No data received", 400
+        return jsonify({"error": "No data received"}), 400
 
     message = data.get("message")
     result = data.get("result")
     if not (message and result):
-        return "Incomplete data", 400
+        return jsonify({"error": "Incomplete data"}), 400
 
     save_to_database('message', ['message', 'result'], [message, result])
-    return "Message saved to database", 201
+    response = {
+        "message": message,
+        "result": result
+    }
+    return jsonify(response), 201
 
 
 @app.route("/save-template", methods=["POST"])
 def save_template():
     data = request.get_json()
     if not data:
-        return "No data received", 400
+        return jsonify({"error": "No data received"}), 400
 
     required_fields = ['template_name', 'folder_id']
     if not all(field in data for field in required_fields):
-        return "Incomplete data", 400
+        return jsonify({"error": "Incomplete data"}), 400
 
     folder_id = data['folder_id']
     if folder_id in [1, 2]:
         return jsonify({"error": "Templates cannot be created in folders with id 1 and 2"}), 403
 
     save_to_database('templates', required_fields, [data[field] for field in required_fields])
-    return "Template saved to database", 201
+    response = {
+        "template_name": data['template_name'],
+        "folder_id": data['folder_id']
+    }
+    return jsonify(response), 201
 
 
 @app.route('/save-folder', methods=['POST'])
