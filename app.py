@@ -2,7 +2,10 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
 from psycopg2 import sql
+from db_init import DatabaseSetup
 
+db_setup = DatabaseSetup()
+db_setup.setup()
 DB_NAME = 'acars'
 DB_USER = 'user_back'
 DB_PASSWORD = 'Gdfhg354'
