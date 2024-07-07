@@ -13,7 +13,7 @@ DB_HOST = "127.0.0.1"
 DB_PORT = "5432"
 
 app = Flask(__name__)
-CORS(app, resources={r"/download": {"origins": "*"}})
+CORS(app)
 
 
 def get_db_connection():
