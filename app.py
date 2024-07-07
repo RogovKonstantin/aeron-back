@@ -170,22 +170,25 @@ def get_template_details():
         return jsonify({"error": "Invalid template_id"}), 400
 
     query = """
-        SELECT message, template, template_name 
+        SELECT message, template, template_name, template_id 
         FROM templates 
         WHERE template_id = %s
     """
     template_details = execute_query(query, (template_id,), fetchone=True)
 
     if template_details:
-        return jsonify({"message": template_details[0], "template": template_details[1], "template_name": template_details[2]})
+        return jsonify(
+            {"message": template_details[0], "template": template_details[1], "template_name": template_details[2],
+             "template_id": template_details[3]})
 
     return jsonify({"error": "Template not found"}), 404
 
 
 @app.route("/update-template", methods=["PUT", "POST"])
 def update_template():
-    template_id = request.args.get("template_id")
-    new_template_value = request.args.get("new_template_value")
+    data = request.get_json()
+    template_id = data.get("template_id")
+    new_template_value = data.get("new_template_value")
 
     if not all([template_id, new_template_value]):
         return jsonify({"error": "Incomplete data"}), 400
