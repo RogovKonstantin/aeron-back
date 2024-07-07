@@ -5,8 +5,8 @@ from psycopg2 import sql
 from db_init import DatabaseSetup
 
 DB_NAME = 'acars'
-DB_USER = 'user_back'
-DB_PASSWORD = 'Gdfhg354'
+DB_USER = 'postgres'
+DB_PASSWORD = 'postgres'
 DB_HOST = "127.0.0.1"
 DB_PORT = "5432"
 
@@ -147,6 +147,29 @@ def get_all_folders():
         {"folder_id": folder[0], "folder_name": folder[1], "parent_id": folder[2]}
         for folder in folders
     ])
+
+
+@app.route("/get-folders-with-templates", methods=["GET"])
+def get_folders_with_templates():
+    folder_query = "SELECT folder_id, folder_name, parent_id FROM folders"
+    folders = execute_query(folder_query, fetchall=True)
+
+    template_query = "SELECT template_id, template_name, folder_id FROM templates"
+    templates = execute_query(template_query, fetchall=True)
+
+    folder_dict = {
+        folder[0]: {"folder_id": folder[0], "folder_name": folder[1], "parent_id": folder[2], "templates": []} for
+        folder in folders}
+
+    for template in templates:
+        folder_id = template[2]
+        if folder_id in folder_dict:
+            folder_dict[folder_id]["templates"].append({
+                "template_id": template[0],
+                "template_name": template[1]
+            })
+
+    return jsonify(list(folder_dict.values()))
 
 
 if __name__ == "__main__":
