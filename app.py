@@ -2,7 +2,11 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
 from psycopg2 import sql
+import re
 from db_init import DatabaseSetup
+
+db_setup = DatabaseSetup()
+db_setup.setup()
 
 DB_NAME = 'acars'
 DB_USER = 'user_back'
@@ -80,25 +84,6 @@ def save_template():
     return jsonify(response), 201
 
 
-@app.route('/save-folder', methods=['POST'])
-def save_folder():
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "No data received"}), 400
-
-    folder_name = data.get("folder_name")
-    parent_id = data.get("parent_id")
-    if not folder_name or not isinstance(parent_id, int):
-        return jsonify({"error": "Incomplete data"}), 400
-
-    save_to_database('folders', ['folder_name', 'parent_id'], [folder_name, parent_id])
-    response = {
-        "folder_name": folder_name,
-        "parent_id": parent_id
-    }
-    return jsonify(response), 201
-
-
 @app.route("/get-folder-id", methods=["GET"])
 def get_folder_id():
     folder_name = request.args.get("folder_name")
@@ -170,6 +155,97 @@ def get_folders_with_templates():
             })
 
     return jsonify(list(folder_dict.values()))
+
+
+@app.route("/get-template-details", methods=["GET"])
+def get_template_details():
+    template_id = request.args.get("template_id")
+
+    if not template_id:
+        return jsonify({"error": "Incomplete data"}), 400
+
+    try:
+        template_id = int(template_id)
+    except ValueError:
+        return jsonify({"error": "Invalid template_id"}), 400
+
+    query = """
+        SELECT message, template, template_name 
+        FROM templates 
+        WHERE template_id = %s
+    """
+    template_details = execute_query(query, (template_id,), fetchone=True)
+
+    if template_details:
+        return jsonify({"message": template_details[0], "template": template_details[1], "template_name": template_details[2]})
+
+    return jsonify({"error": "Template not found"}), 404
+
+
+@app.route("/update-template", methods=["PUT", "POST"])
+def update_template():
+    template_id = request.args.get("template_id")
+    new_template_value = request.args.get("new_template_value")
+
+    if not all([template_id, new_template_value]):
+        return jsonify({"error": "Incomplete data"}), 400
+
+    try:
+        template_id = int(template_id)
+    except ValueError:
+        return jsonify({"error": "Invalid template_id"}), 400
+
+    query = """
+        UPDATE templates 
+        SET template = %s
+        WHERE template_id = %s
+        RETURNING template_id, template_name, template
+    """
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(query, (new_template_value, template_id))
+                updated_template = cursor.fetchone()
+                conn.commit()
+    except psycopg2.Error as e:
+        return jsonify({"error": f"Database error: {e}"}), 500
+
+    if updated_template:
+        response = {
+            "template_id": updated_template[0],
+            "template_name": updated_template[1],
+            "template": updated_template[2]
+        }
+        return jsonify(response), 200
+    else:
+        return jsonify({"error": f"Template with ID {template_id} not found"}), 404
+
+
+@app.route('/save-folder', methods=['POST'])
+def save_folder():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data received"}), 400
+
+    folder_name = data.get("folder_name")
+    parent_id = data.get("parent_id")
+    if not folder_name or not isinstance(parent_id, int):
+        return jsonify({"error": "Incomplete data"}), 400
+
+    save_to_database('folders', ['folder_name', 'parent_id'], [folder_name, parent_id])
+    response = {
+        "folder_name": folder_name,
+        "parent_id": parent_id
+    }
+    return jsonify(response), 201
+
+
+def parse_message(template, message):
+    parsed_data = {}
+    for key, pattern in template.items():
+        match = re.findall(pattern, message)
+        parsed_data[key] = match
+    return parsed_data
 
 
 if __name__ == "__main__":

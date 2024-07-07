@@ -12,9 +12,17 @@ class DatabaseSetup:
         self.conn = psycopg2.connect(dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT)
         self.cursor = self.conn.cursor()
 
-    def truncate_tables(self):
-        query = '''TRUNCATE TABLE templates, message, folders RESTART IDENTITY CASCADE'''
-        self.cursor.execute(query)
+    def drop_all_tables(self):
+
+        self.cursor.execute("""
+            SELECT tablename
+            FROM pg_tables
+            WHERE schemaname = 'public'
+        """)
+        tables = self.cursor.fetchall()
+
+        for table in tables:
+            self.cursor.execute(f"DROP TABLE IF EXISTS {table[0]} CASCADE")
 
     def create_tables(self):
         queries = [
@@ -25,7 +33,7 @@ class DatabaseSetup:
                 FOREIGN KEY (parent_id) REFERENCES folders(folder_id),
                 CONSTRAINT unique_folder_name UNIQUE (folder_name)
             )''',
-            '''CREATE TABLE IF NOT EXISTS message (
+            '''CREATE TABLE IF NOT EXISTS messages (
                 message_id SERIAL PRIMARY KEY,
                 message VARCHAR(255) NOT NULL,
                 result VARCHAR(255) NOT NULL
@@ -34,7 +42,7 @@ class DatabaseSetup:
                 template_id SERIAL PRIMARY KEY,
                 template_name VARCHAR(255) NOT NULL,
                 picking_template VARCHAR(255),
-                template VARCHAR(255) NOT NULL,
+                template VARCHAR(255),
                 model VARCHAR(255),
                 message VARCHAR(255),
                 folder_id INTEGER NOT NULL,
@@ -53,7 +61,7 @@ class DatabaseSetup:
                 ('A-300 template', 1),
                 ('A-350 templates', 1)
                 ''',
-            '''INSERT INTO message (message, result) VALUES 
+            '''INSERT INTO messages (message, result) VALUES 
                 ('Message 1', 'Result A'),
                 ('Message 2', 'Result B'),
                 ('Message 3', 'Result C'),
@@ -61,18 +69,18 @@ class DatabaseSetup:
                 ('Message 5', 'Result E'),
                 ('Message 6', 'Result F')''',
             '''INSERT INTO templates (template_name, picking_template, template, model, message, folder_id) VALUES 
-                ('Template 1', 'Picking A', 'Template A', 'Model A', 'Message 1', 3),
-                ('Template 2', 'Picking B', 'Template B', 'Model B', 'Message 2', 4),
-                ('Template 3', NULL, 'Template C', 'Model C', 'Message 3', 5),
-                ('Template 4', NULL, 'Template D', 'Model D', 'Message 4', 6),
-                ('Template 5', 'Picking C', 'Template E', 'Model E', 'Message 5', 7)'''
+                ('Template 1', 'Picking A', 'Template A', 'Model A', 'message1', 3),
+                ('Template 2', 'Picking B', 'Template B', 'Model B', 'message2', 4),
+                ('Template 3', NULL, 'Template C', 'Model C',NULL, 5),
+                ('Template 4', NULL, 'Template D', 'Model D',NULL, 3),
+                ('Template 5', 'Picking C', 'Template E', 'Model E',NULL, 5)'''
         ]
         for query in queries:
             self.cursor.execute(query)
 
     def setup(self):
         try:
-            self.truncate_tables()
+            self.drop_all_tables()
             self.create_tables()
             self.populate_tables()
             self.conn.commit()
