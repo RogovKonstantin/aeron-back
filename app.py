@@ -74,10 +74,16 @@ def save_template():
 
 @app.route('/save-folder', methods=['POST'])
 def save_folder():
-    data = request.json
-    folder_name = data.get('folder_name')
-    parent_id = data.get('parent_id')
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data received"}), 400
 
+    folder_name = data.get("folder_name")
+    parent_id = data.get("parent_id")
+    if not folder_name or not isinstance(parent_id, int):
+        return jsonify({"error": "Incomplete data"}), 400
+
+    save_to_database('folders', ['folder_name', 'parent_id'], [folder_name, parent_id])
     response = {
         "folder_name": folder_name,
         "parent_id": parent_id
