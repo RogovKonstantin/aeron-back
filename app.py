@@ -11,8 +11,8 @@ db_setup = DatabaseSetup()
 db_setup.setup()
 
 DB_NAME = 'acars'
-DB_USER = 'postgres'
-DB_PASSWORD = 'postgres'
+DB_USER = 'user_back'
+DB_PASSWORD = 'Gdfhg354'
 DB_HOST = "127.0.0.1"
 DB_PORT = "5432"
 
@@ -260,8 +260,8 @@ def parse():
         return jsonify({"error": "Incomplete data"}), 400
 
     # Fetch the existing template from the database
-    query = "SELECT template, message, template_name FROM templates WHERE template_id = %s"
-    existing_template = execute_query(query, (template_id,), fetchone=True)
+    existing_template_query = "SELECT template, message, template_name FROM templates WHERE template_id = %s"
+    existing_template = execute_query(existing_template_query, (template_id,), fetchone=True)
 
     if not existing_template:
         return jsonify({"error": "Template not found"}), 404
@@ -275,32 +275,41 @@ def parse():
     template_changed = serialized_template != existing_template_json
     message_changed = message != existing_message
 
-    # Parse the message using the provided template
+    # Assume parse_message is a function that parses the message using the provided template
     parsed_result = parse_message(template, message)
 
     if template_changed and parsed_result:
         # Logic for saving as a new template if changed
         new_template_name = find_next_template_name(template_name)
-        folder_id = execute_query("SELECT folder_id FROM templates WHERE template_id = %s", (template_id,), fetchone=True)[0]
+        folder_id_query = "SELECT folder_id FROM templates WHERE template_id = %s"
+        folder_id = execute_query(folder_id_query, (template_id,), fetchone=True)[0]
         save_to_database('templates', ['template_name', 'template', 'message', 'folder_id'],
                          [new_template_name, serialized_template, message, folder_id])
 
+        # Save the original message and the parsing result
+        save_message_and_result_query = "INSERT INTO messages (message, result) VALUES (%s, %s)"
+        execute_query(save_message_and_result_query, (message, json.dumps(parsed_result)))
+
         # Fetch the ID and name of the newly created template
-        new_template = execute_query("SELECT template_id, template_name FROM templates WHERE template_name = %s ORDER BY template_id DESC LIMIT 1",
-                                     (new_template_name,), fetchone=True)
+        new_template_query = "SELECT template_id, template_name FROM templates WHERE template_name = %s ORDER BY template_id DESC LIMIT 1"
+        new_template = execute_query(new_template_query, (new_template_name,), fetchone=True)
 
         response = {"template_id": new_template[0], "template_name": new_template[1], "parsed_result": parsed_result}
         return jsonify(response), 200
 
     elif not template_changed and parsed_result:
         # Update the existing template if not changed
-        query = """
+        update_template_query = """
             UPDATE templates 
             SET template = %s, message = %s
             WHERE template_id = %s
             RETURNING template_id
         """
-        updated_template_id = execute_query(query, (serialized_template, message, template_id), fetchone=True)[0]
+        updated_template_id = execute_query(update_template_query, (serialized_template, message, template_id), fetchone=True)[0]
+
+        # Save the original message and the parsing result
+        save_message_and_result_query = "INSERT INTO messages (message, result) VALUES (%s, %s)"
+        execute_query(save_message_and_result_query, (message, json.dumps(parsed_result)))
 
         if updated_template_id:
             response = {"template_id": updated_template_id, "template_name": existing_template_name, "parsed_result": parsed_result}
@@ -344,6 +353,8 @@ def find_next_template_name(template_name):
         new_template_name = f"{template_name} 1"
 
     return new_template_name
+
+
 
 
 if __name__ == "__main__":
