@@ -260,80 +260,58 @@ def parse():
         return jsonify({"error": "Incomplete data"}), 400
 
     # Fetch the existing template from the database
-    query = "SELECT template, message FROM templates WHERE template_id = %s"
+    query = "SELECT template, message, template_name FROM templates WHERE template_id = %s"
     existing_template = execute_query(query, (template_id,), fetchone=True)
 
     if not existing_template:
         return jsonify({"error": "Template not found"}), 404
 
-    existing_template_json = existing_template[0]
-    existing_message = existing_template[1]
+    existing_template_json, existing_message, existing_template_name = existing_template
 
     # Serialize incoming template for comparison
     serialized_template = json.dumps(template, sort_keys=True)
 
-    # Check if the template has changed
+    # Check if the template or message has changed
     template_changed = serialized_template != existing_template_json
     message_changed = message != existing_message
 
     # Parse the message using the provided template
     parsed_result = parse_message(template, message)
 
-    # Save the original message and result of parsing to the messages table
-    if template_changed or message_changed:
-        save_to_database('messages', ['message', 'result'], [message, json.dumps(parsed_result)])
-
-    # If the template has changed and parsing was successful, save as a new template
     if template_changed and parsed_result:
+        # Logic for saving as a new template if changed
         new_template_name = find_next_template_name(template_name)
         folder_id = execute_query("SELECT folder_id FROM templates WHERE template_id = %s", (template_id,), fetchone=True)[0]
-
         save_to_database('templates', ['template_name', 'template', 'message', 'folder_id'],
                          [new_template_name, serialized_template, message, folder_id])
 
-        # Fetch the ID of the newly created template
-        query_new_id = "SELECT template_id FROM templates WHERE template_name = %s ORDER BY template_id DESC LIMIT 1"
-        new_template_id = execute_query(query_new_id, (new_template_name,), fetchone=True)[0]
+        # Fetch the ID and name of the newly created template
+        new_template = execute_query("SELECT template_id, template_name FROM templates WHERE template_name = %s ORDER BY template_id DESC LIMIT 1",
+                                     (new_template_name,), fetchone=True)
 
-        response = {
-            "template_id": new_template_id,
-            "parsed_result": parsed_result
-        }
+        response = {"template_id": new_template[0], "template_name": new_template[1], "parsed_result": parsed_result}
         return jsonify(response), 200
 
-    # If the template has not changed and parsing was successful, update the existing template
     elif not template_changed and parsed_result:
-        serialized_template = json.dumps(template)
+        # Update the existing template if not changed
         query = """
             UPDATE templates 
-            SET template = %s,
-                message = %s
+            SET template = %s, message = %s
             WHERE template_id = %s
-            RETURNING template_id, template_name, template
+            RETURNING template_id
         """
-        try:
-            with get_db_connection() as conn:
-                with conn.cursor() as cursor:
-                    cursor.execute(query, (serialized_template, message, template_id))
-                    updated_template = cursor.fetchone()
-                    conn.commit()
-        except psycopg2.Error as e:
-            return jsonify({"error": f"Database error: {e}"}), 500
+        updated_template_id = execute_query(query, (serialized_template, message, template_id), fetchone=True)[0]
 
-        if updated_template:
-            response = {
-                "template_id": template_id,
-                "parsed_result": parsed_result
-            }
+        if updated_template_id:
+            response = {"template_id": updated_template_id, "template_name": existing_template_name, "parsed_result": parsed_result}
             return jsonify(response), 200
         else:
-            return jsonify({"error": f"Template with ID {template_id} not found"}), 404
+            return jsonify({"error": "Template update failed"}), 404
 
-    # If the template has not changed and parsing failed, return a message
     elif not template_changed and not parsed_result:
+        # Handle case where template hasn't changed and parsing failed
         return jsonify({"message": message, "parsed_result": parsed_result}), 200
 
-    # Return message if parsing failed or template unchanged without success
     return jsonify({"error": "Template not updated"}), 400
 
 
