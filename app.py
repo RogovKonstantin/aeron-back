@@ -291,10 +291,12 @@ def parse():
         save_to_database('templates', ['template_name', 'template', 'message', 'folder_id'],
                          [new_template_name, serialized_template, message, folder_id])
 
+        # Fetch the ID of the newly created template
+        query_new_id = "SELECT template_id FROM templates WHERE template_name = %s ORDER BY template_id DESC LIMIT 1"
+        new_template_id = execute_query(query_new_id, (new_template_name,), fetchone=True)[0]
+
         response = {
-            "template_name": new_template_name,
-            "template": template,
-            "message": message,
+            "template_id": new_template_id,
             "parsed_result": parsed_result
         }
         return jsonify(response), 200
@@ -320,10 +322,7 @@ def parse():
 
         if updated_template:
             response = {
-                "template_id": updated_template[0],
-                "template_name": updated_template[1],
-                "template": template,
-                "message": message,
+                "template_id": template_id,
                 "parsed_result": parsed_result
             }
             return jsonify(response), 200
