@@ -1,8 +1,8 @@
 import psycopg2
 
 DB_NAME = 'acars'
-DB_USER = 'user_back'
-DB_PASSWORD = 'Gdfhg354'
+DB_USER = 'postgres'
+DB_PASSWORD = 'postgres'
 DB_HOST = "127.0.0.1"
 DB_PORT = "5432"
 
@@ -36,7 +36,7 @@ class DatabaseSetup:
             '''CREATE TABLE IF NOT EXISTS messages (
                 message_id SERIAL PRIMARY KEY,
                 message TEXT NOT NULL,
-                result VARCHAR(255) NOT NULL
+                result TEXT NOT NULL
             )''',
             '''CREATE TABLE IF NOT EXISTS templates (
                 template_id SERIAL PRIMARY KEY,
@@ -59,7 +59,8 @@ class DatabaseSetup:
                 ('Uplink templates', NULL),
                 ('A-320 templates', 1),
                 ('A-300 template', 1),
-                ('A-350 templates', 1)
+                ('A-350 templates', 1),
+                ('Recent',1)
                 ''',
             '''INSERT INTO messages (message, result) VALUES 
                 ('Message 1', 'Result A'),

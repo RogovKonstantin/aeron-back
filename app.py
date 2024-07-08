@@ -1,3 +1,5 @@
+import json
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import psycopg2
@@ -9,8 +11,8 @@ db_setup = DatabaseSetup()
 db_setup.setup()
 
 DB_NAME = 'acars'
-DB_USER = 'user_back'
-DB_PASSWORD = 'Gdfhg354'
+DB_USER = 'postgres'
+DB_PASSWORD = 'postgres'
 DB_HOST = "127.0.0.1"
 DB_PORT = "5432"
 
@@ -243,12 +245,128 @@ def save_folder():
     return jsonify(response), 201
 
 
+@app.route("/parse", methods=["POST", "PUT"])
+def parse():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data received"}), 400
+
+    template_id = data.get("template_id")
+    template_name = data.get("template_name")
+    template = data.get("template")
+    message = data.get("message")
+
+    if not (template_id and template_name and template and message):
+        return jsonify({"error": "Incomplete data"}), 400
+
+    # Fetch the existing template from the database
+    query = "SELECT template, message FROM templates WHERE template_id = %s"
+    existing_template = execute_query(query, (template_id,), fetchone=True)
+
+    if not existing_template:
+        return jsonify({"error": "Template not found"}), 404
+
+    existing_template_json = existing_template[0]
+    existing_message = existing_template[1]
+
+    # Serialize incoming template for comparison
+    serialized_template = json.dumps(template, sort_keys=True)
+
+    # Check if the template has changed
+    template_changed = serialized_template != existing_template_json
+    message_changed = message != existing_message
+
+    # Parse the message using the provided template
+    parsed_result = parse_message(template, message)
+
+    # Save the original message and result of parsing to the messages table
+    if template_changed or message_changed:
+        save_to_database('messages', ['message', 'result'], [message, json.dumps(parsed_result)])
+
+    # If the template has changed and parsing was successful, save as a new template
+    if template_changed and parsed_result:
+        new_template_name = find_next_template_name(template_name)
+        folder_id = execute_query("SELECT folder_id FROM templates WHERE template_id = %s", (template_id,), fetchone=True)[0]
+
+        save_to_database('templates', ['template_name', 'template', 'message', 'folder_id'],
+                         [new_template_name, serialized_template, message, folder_id])
+
+        response = {
+            "template_name": new_template_name,
+            "template": template,
+            "message": message,
+            "parsed_result": parsed_result
+        }
+        return jsonify(response), 200
+
+    # If the template has not changed and parsing was successful, update the existing template
+    elif not template_changed and parsed_result:
+        serialized_template = json.dumps(template)
+        query = """
+            UPDATE templates 
+            SET template = %s,
+                message = %s
+            WHERE template_id = %s
+            RETURNING template_id, template_name, template
+        """
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(query, (serialized_template, message, template_id))
+                    updated_template = cursor.fetchone()
+                    conn.commit()
+        except psycopg2.Error as e:
+            return jsonify({"error": f"Database error: {e}"}), 500
+
+        if updated_template:
+            response = {
+                "template_id": updated_template[0],
+                "template_name": updated_template[1],
+                "template": template,
+                "message": message,
+                "parsed_result": parsed_result
+            }
+            return jsonify(response), 200
+        else:
+            return jsonify({"error": f"Template with ID {template_id} not found"}), 404
+
+    # If the template has not changed and parsing failed, return a message
+    elif not template_changed and not parsed_result:
+        return jsonify({"message": message, "parsed_result": parsed_result}), 200
+
+    # Return message if parsing failed or template unchanged without success
+    return jsonify({"error": "Template not updated"}), 400
+
+
 def parse_message(template, message):
     parsed_data = {}
     for key, pattern in template.items():
         match = re.findall(pattern, message)
         parsed_data[key] = match
     return parsed_data
+
+
+def find_next_template_name(template_name):
+    query = """
+        SELECT template_name FROM templates 
+        WHERE template_name LIKE %s
+        ORDER BY template_name DESC
+        LIMIT 1
+    """
+    similar_templates = execute_query(query, (f"{template_name}%",), fetchall=True)
+
+    if similar_templates:
+        last_template_name = similar_templates[0][0]
+        match = re.search(r'\d+$', last_template_name)
+        if match:
+            number_suffix = int(match.group()) + 1
+            new_template_name = f"{template_name} {number_suffix}"
+        else:
+            new_template_name = f"{template_name} 1"
+    else:
+        new_template_name = f"{template_name} 1"
+
+    return new_template_name
 
 
 if __name__ == "__main__":
