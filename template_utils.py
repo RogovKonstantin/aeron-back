@@ -1,28 +1,5 @@
 from db_operations import *
-import re
 from flask import jsonify
-
-
-def process_template_string(template_string):
-    # Remove the initial and trailing quotes
-    template_string = template_string.strip('"')
-    # Replace the escaped newlines with actual newlines
-    template_string = template_string.replace('\\n', '\n')
-    # Convert the string representation of the template into a valid dictionary
-    template_dict = {}
-    pattern = re.compile(r'"([^"]+)": r"(.+?)"', re.DOTALL)
-    matches = pattern.findall(template_string)
-    for key, value in matches:
-        template_dict[key] = value.replace(r'\\', '\\')
-    return template_dict
-
-
-def parse_message(template, message):
-    parsed_data = {}
-    for key, pattern in template.items():
-        match = re.findall(pattern, message)
-        parsed_data[key] = match
-    return parsed_data
 
 
 def get_template(request):
@@ -135,26 +112,3 @@ def update_template(request):
         return jsonify(response), 200
     else:
         return jsonify({"error": f"Template with ID {template_id} not found"}), 404
-
-
-def find_next_template_name(template_name):
-    query = """
-        SELECT template_name FROM templates 
-        WHERE template_name LIKE %s
-        ORDER BY template_name DESC
-        LIMIT 1
-    """
-    similar_templates = execute_query(query, (f"{template_name}%",), fetchall=True)
-
-    if similar_templates:
-        last_template_name = similar_templates[0][0]
-        match = re.search(r'\d+$', last_template_name)
-        if match:
-            number_suffix = int(match.group()) + 1
-            new_template_name = f"{template_name} {number_suffix}"
-        else:
-            new_template_name = f"{template_name} 1"
-    else:
-        new_template_name = f"{template_name} 1"
-
-    return new_template_name
