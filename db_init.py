@@ -1,15 +1,14 @@
 import psycopg2
-
-DB_NAME = 'acars'
-DB_USER = 'user_back'
-DB_PASSWORD = 'Gdfhg354'
-DB_HOST = "127.0.0.1"
-DB_PORT = "5432"
+from config import Config
 
 
 class DatabaseSetup:
     def __init__(self):
-        self.conn = psycopg2.connect(dbname=DB_NAME, user=DB_USER, password=DB_PASSWORD, host=DB_HOST, port=DB_PORT)
+        self.conn = psycopg2.connect(dbname=Config.DB_NAME,
+                                     user=Config.DB_USER,
+                                     password=Config.DB_PASSWORD,
+                                     host=Config.DB_HOST,
+                                     port=Config.DB_PORT)
         self.cursor = self.conn.cursor()
 
     def drop_all_tables(self):
