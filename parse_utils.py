@@ -22,10 +22,8 @@ def parse(request):
         parsed_result = parse_message(processed_template, message)
 
         if parsed_result:
-            # Save message and parsing result to messages table
             save_to_database('messages', ['message', 'result'], [message, json.dumps(parsed_result)])
 
-            # Update template and message fields in templates table
             query = """
                 UPDATE templates
                 SET template = %s, message = %s
@@ -41,7 +39,6 @@ def parse(request):
             }
             return jsonify(response), 200
         else:
-            # Save message and error to messages table
             save_to_database('messages', ['message', 'result'], [message, 'Failed to parse message'])
             return jsonify({"error": "Failed to parse message"}), 500
 
