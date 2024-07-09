@@ -1,6 +1,7 @@
 from db_operations import *
 import re
 from flask import jsonify
+from ttp import ttp
 import json
 
 
@@ -20,9 +21,8 @@ def parse(request):
     try:
         processed_template = process_template_string(template_str)
 
-        # Determine the parsing method
         if '<group>' in template_str:
-            parsed_result = 't'  # parse_message_ttp(template_str, message)
+            parsed_result = parse_message_ttp(template_str, message)
         else:
             parsed_result = parse_message_re(processed_template, message)
 
@@ -63,6 +63,11 @@ def parse_message_re(template, message):
         match = re.findall(pattern, message)
         parsed_data[key] = match
     return parsed_data
+
+
+def parse_message_ttp(template, message):
+    parser = ttp(message, template)
+    return parser.parse()
 
 
 def process_template_string(template_string):
