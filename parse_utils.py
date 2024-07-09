@@ -67,8 +67,8 @@ def parse_message_re(template, message):
 
 def parse_message_ttp(template, message):
     parser = ttp(message, template)
-    return parser.parse()
-
+    parser.parse()
+    return parser.result()[0]
 
 def process_template_string(template_string):
     template_string = template_string.strip('"')
