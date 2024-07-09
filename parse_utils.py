@@ -1,7 +1,8 @@
 from db_operations import *
-import json
 import re
 from flask import jsonify
+from ttp import ttp
+import json
 
 
 def parse(request):
@@ -19,7 +20,12 @@ def parse(request):
 
     try:
         processed_template = process_template_string(template_str)
-        parsed_result = parse_message(processed_template, message)
+
+        # Determine the parsing method
+        if '<group>' in template_str:
+            parsed_result = parse_message_ttp(template_str, message)
+        else:
+            parsed_result = parse_message_re(processed_template, message)
 
         if parsed_result:
             save_to_database('messages', ['message', 'result'], [message, json.dumps(parsed_result)])
@@ -52,12 +58,18 @@ def parse(request):
         return jsonify({"error": f"Error during parsing: {e}"}), 500
 
 
-def parse_message(template, message):
+def parse_message_re(template, message):
     parsed_data = {}
     for key, pattern in template.items():
         match = re.findall(pattern, message)
         parsed_data[key] = match
     return parsed_data
+
+
+def parse_message_ttp(template, message):
+    parser = ttp(message, template)
+    parser.parse()
+    return parser.result()[0]
 
 
 def process_template_string(template_string):
